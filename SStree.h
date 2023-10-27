@@ -809,6 +809,7 @@ public:
 //    void build (const std::vector<Point>& points);
 //    std::vector<Point> kNNQuery(const Point& center, size_t k) const;
 
+
     void print() const;
     void test() const;
 
