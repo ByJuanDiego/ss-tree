@@ -40,7 +40,6 @@ set(INDEXING_SOURCE_FILES
 set(INTERFACE_SOURCE_FILES
         Interface.cpp
         CortexAPI.cpp
-        indexing.cpp
         params.h
         SStree.cpp
         tinyfiledialogs.c

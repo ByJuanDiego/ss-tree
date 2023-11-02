@@ -11,7 +11,8 @@
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-
+inline int dir_iter = 300;
+inline int centroid_iter = 100;
 
 class SsNode {
 private:
@@ -53,7 +54,7 @@ private:
         return partition;
     }
 
-protected:
+public:
 
     [[nodiscard]] static Point meanPoint(const std::vector<Point>& points) {
         Point mean = points[0];
@@ -102,13 +103,10 @@ public:
     SsNode* parent = nullptr;
 
     [[nodiscard]] virtual bool isLeaf() const = 0;
-    [[nodiscard]] virtual std::pair<NType, Point> bestCentroidAlongDirection(const Point& p1, const Point& p2, int n_iter) = 0;
+    [[nodiscard]] virtual std::pair<NType, Point> bestCentroidAlongDirection(const Point& p1, const Point& p2, int n) = 0;
     [[nodiscard]] virtual std::vector<Point> getEntriesCentroids() const = 0;
     virtual void sortEntriesByCoordinate(size_t coordinateIndex) = 0;
     virtual std::pair<SsNode*, SsNode*> split() = 0;
-    [[nodiscard]] virtual bool intersectsPoint(const Point& point) const {
-        return distance(this->centroid, point) <= this->radius;
-    }
 
     virtual void updateBoundingEnvelope() = 0;
 
@@ -145,6 +143,7 @@ public:
     [[nodiscard]] virtual int getEntriesSize() const = 0;
 
     [[nodiscard]] virtual int count() const = 0;
+    [[nodiscard]] virtual std::pair<NType, Point> FrankWolfeAlgorithm(Point& seed, int k) = 0;
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -310,21 +309,15 @@ public:
     [[nodiscard]] SsNode* findMinRadiusIncreaseChild(const Point& target) const {
         SsNode* closest = nullptr;
         NType min_radius_increase = NType::max_value();
-        NType min_radius = NType::max_value();
+        NType num_entries = NType::min_value();
 
         for (SsNode* node: children) {
             NType dis = distance(node->centroid, target);
 
-            // Optimized(?) by: Nikocado Avocado
             if (dis <= node->radius) {
-                if (min_radius == NType::max_value()) {
+                if (num_entries < getEntriesSize()) {
                     closest = node;
-                    min_radius = node->radius;
-                    min_radius_increase = 0;
-                } else if (min_radius > node->radius) {
-                    closest = node;
-                    min_radius = node->radius;
-                    min_radius_increase = 0;
+                    num_entries = getEntriesSize();
                 }
             }
             else {
@@ -349,13 +342,13 @@ public:
 
     std::pair<NType, Point> bestCentroidAlongDirection(const Point& p1, const Point& p2, int n_iter) override {
         NType segment_distance = distance(p1, p2);
-        NType step = segment_distance * 2.0 / (float) n_iter;
+        NType step = segment_distance / (float) n_iter;
 
         Point difference = p2 - p1;
         Point direction = difference / difference.norm();
 
         Point best_centroid;           // Initially unassigned
-        Point current_centroid = p1 - direction * segment_distance / 2.0;   // Initial centroid
+        Point current_centroid = p1;  // Initial centroid
 
         NType current_centroid_radius; // Initially unassigned
         NType best_radius = NType::max_value(); // Initial best
@@ -406,7 +399,7 @@ public:
         for (int i = 0; i < points.size(); ++i) {
             for (int j = i; j < points.size(); ++j) {
                 if (distance(points[i], points[j]) > 0) {
-                    std::pair<NType, Point> option = bestCentroidAlongDirection(points[i], points[j], 70);
+                    std::pair<NType, Point> option = bestCentroidAlongDirection(points[i], points[j], dir_iter);
                     if (option.first < best_radius) {
                         best_radius = option.first;
                         best_centroid = option.second;
@@ -416,11 +409,18 @@ public:
         }
 
         if (distance(mbb2nd.first, mbb2nd.second) > 0) {
-            std::pair<NType, Point> option = bestCentroidAlongDirection(mbb2nd.first, mbb2nd.second, 70);
+            std::pair<NType, Point> option = bestCentroidAlongDirection(mbb2nd.first, mbb2nd.second, dir_iter);
             if (option.first < best_radius) {
                 best_radius = option.first;
                 best_centroid = option.second;
             }
+        }
+
+        auto x = FrankWolfeAlgorithm(mean, centroid_iter);
+        if (x.first < best_radius) {
+            this->centroid = x.second;
+            this->radius = x.first;
+            return;
         }
 
         this->radius = best_radius;
@@ -453,7 +453,7 @@ public:
         for (int i = 0; i < points.size(); ++i) {
             for (int j = i; j < points.size(); ++j) {
                 if (distance(points[i], points[j]) > 0) {
-                    std::pair<NType, Point> option = bestCentroidAlongDirection(points[i], points[j], 70);
+                    std::pair<NType, Point> option = bestCentroidAlongDirection(points[i], points[j], dir_iter);
                     if (option.first < best_radius) {
                         best_radius = option.first;
                         best_centroid = option.second;
@@ -463,7 +463,7 @@ public:
         }
 
         if (distance(mbb2nd.first, mbb2nd.second) > 0) {
-            std::pair<NType, Point> option = bestCentroidAlongDirection(mbb2nd.first, mbb2nd.second, 70);
+            std::pair<NType, Point> option = bestCentroidAlongDirection(mbb2nd.first, mbb2nd.second, dir_iter);
             if (option.first < best_radius) {
                 best_radius = option.first;
                 best_centroid = option.second;
@@ -494,7 +494,7 @@ public:
 
             for (Point &point: newEntriesPoints) {
                 if (distance(centroid, point) > 0) {
-                    std::pair<NType, Point> option = bestCentroidAlongDirection(centroid, point, 70);
+                    std::pair<NType, Point> option = bestCentroidAlongDirection(centroid, point, dir_iter);
                     if (option.first < best_radius) {
                         best_radius = option.first;
                         best_centroid = option.second;
@@ -503,8 +503,59 @@ public:
             }
         }
 
+        auto x = FrankWolfeAlgorithm(mean, centroid_iter);
+        if (x.first < best_radius) {
+            this->centroid = x.second;
+            this->radius = x.first;
+            return;
+        }
+
         this->radius = best_radius;
         this->centroid = best_centroid;
+    }
+
+    [[nodiscard]] std::pair<NType, Point> FrankWolfeAlgorithm(Point& seed, int k) override {
+        Point c = seed;
+        NType r = NType::max_value();
+        int i = 1;
+//
+//        std::vector<Point> points;
+//        for (SsNode* node: children) {
+//            Point p = node->centroid;
+//            Point v = c - p;
+//            Point dir = v / v.norm();
+//            points.push_back(c + dir * node->radius);
+//        }
+
+        while (true) {
+            NType current_radius = NType::min_value();
+            Point farthest;
+            for (SsNode* node: children) {
+                NType d = distance(node->centroid, c);
+                if (d > current_radius) {
+                    current_radius = d;
+                    farthest = node->centroid;
+                }
+            }
+
+            r = current_radius;
+
+            if (i == k) {
+                break;
+            }
+
+            c = c * float(i) / float(i + 1) + farthest * 1 / float(i + 1);
+            ++i;
+        }
+
+        for (SsNode* node: children) {
+            NType dis = distance(node->centroid, c) + node->radius;
+            if (dis > r) {
+                r = dis;
+            }
+        }
+
+        return {r, c};
     }
 
     std::pair<SsNode*, SsNode*> insert(const Point& point, const std::string& path) override {
@@ -515,9 +566,6 @@ public:
         SsNode* newChild2 = newChildren.second;
 
         if (newChild1 == nullptr) {
-            children.erase(std::remove(children.begin(),children.end(),closestChild),
-                           children.end());
-            children.emplace_back(closestChild);
             updateBoundingEnvelope();
             return std::make_pair(nullptr, nullptr);
         } else {
@@ -595,14 +643,16 @@ public:
         auto* newNode1 = new SsLeaf(D);
         newNode1->points.reserve(splitIndex);
         for (size_t i = 0; i < splitIndex; ++i) {
-            newNode1->insert(points[i], paths[i]);
+            newNode1->points.push_back(points[i]);
+            newNode1->paths.push_back(paths[i]);
         }
         newNode1->parent = parent;
 
         auto* newNode2 = new SsLeaf(D);
         newNode2->points.reserve(points.size() - splitIndex);
         for (size_t i = splitIndex; i < points.size(); ++i) {
-            newNode2->insert(points[i], paths[i]);
+            newNode2->points.push_back(points[i]);
+            newNode2->paths.push_back(paths[i]);
         }
         newNode2->parent = parent;
 
@@ -612,57 +662,6 @@ public:
     }
 
     [[nodiscard]] bool isLeaf() const override { return true; }
-
-    std::pair<NType, Point> kFarthestNeighbours(int k) {
-        Point best_centroid = points[0];
-        NType best_radius = NType::max_value();
-        // for each object in the collection...
-        for (int i = 0; i < points.size(); ++i) {
-            Point target = points[i]; // let call the i-th object as the chosen target
-            std::priority_queue<Point, std::vector<Point>, std::function<bool(Point&, Point&)>> pq {
-                    [&](Point& p1, Point& p2) -> bool {
-                        return distance(p1, target) > distance(p2, target);
-                    }};
-
-            // then, get the k farthest points to the target
-            for (int j = 0; j < points.size(); ++j) {
-                if (j == i) {
-                    continue;
-                }
-                if (pq.size() < k) {
-                    pq.push(points[j]);
-                } else if (distance(points[j], target) > distance(pq.top(), target)) {
-                    pq.pop();
-                    pq.push(points[j]);
-                }
-            }
-            // compute the construction of the hypersphere for each farther point
-            while (!pq.empty()) {
-                Point farther = pq.top();
-                pq.pop();
-                Point candidate_centroid = (target + farther) / 2.0;
-                NType candidate_radius = distance(candidate_centroid, farther);
-                for (Point& p: points) {
-                    NType dis = distance(candidate_centroid, p);
-                    if (dis > candidate_radius) {
-                        candidate_radius = dis;
-                    }
-                }
-                // if the final radius for the candidate is lesser than the current, update the best choice
-                if (candidate_radius < best_radius) {
-                    best_radius = candidate_radius;
-                    best_centroid = candidate_centroid;
-                }
-            }
-        }
-
-        return std::make_pair(best_radius, best_centroid);
-    }
-
-    std::pair<NType, Point> meanShift() {
-        Point mean = meanPoint(getEntriesCentroids());
-        return bestCentroidAlongDirection(centroid, mean, 50);
-    }
 
     std::pair<NType, Point> bestCentroidAlongDirection(const Point& p1, const Point& p2, int n_iter) override {
         NType segment_distance = distance(p1, p2);
@@ -698,6 +697,35 @@ public:
         return std::make_pair(best_radius, best_centroid);
     }
 
+    [[nodiscard]] std::pair<NType, Point> FrankWolfeAlgorithm(Point& seed, int k) override {
+        Point c = seed;
+        NType r = NType::max_value();
+        int i = 1;
+
+        while (true) {
+            NType current_radius = NType::min_value();
+            Point farthest;
+            for (Point &p: points) {
+                NType d = distance(p, c);
+                if (d > current_radius) {
+                    current_radius = d;
+                    farthest = p;
+                }
+            }
+
+            r = current_radius;
+
+            if (i == k) {
+                break;
+            }
+
+            c = c * float(i) / float(i + 1) + farthest * 1 / float(i + 1);
+            ++i;
+        }
+
+        return {r, c};
+    }
+
     void updateBoundingEnvelope() override {
         if (points.size() == 1) {
             this->radius = 0;
@@ -709,31 +737,12 @@ public:
             this->radius = distance(points[0], centroid);
             return;
         }
-        if (distance(points.back(), centroid) <= radius) {
-            return;
-        }
 
-        int k = std::ceil(0.4f * (float) points.size());
+        Point mean = meanPoint(points);
+        auto frankWolfeAlgorithm = FrankWolfeAlgorithm(mean, centroid_iter);
 
-        std::vector<std::pair<NType, Point>> options {
-            kFarthestNeighbours(k),
-            meanShift(),
-            bestCentroidAlongDirection(points.back(), meanPoint(points), 50),
-            bestCentroidAlongDirection(points.back(), meanPoint(std::vector<Point> {points.begin(), points.end() - 1}), 70),
-        };
-
-        NType best_radius = NType::max_value();
-        Point best_centroid;
-
-        for (std::pair<NType, Point>& option: options) {
-            if (option.first < best_radius) {
-                best_radius = option.first;
-                best_centroid = option.second;
-            }
-        }
-
-        this->centroid = best_centroid;
-        this->radius = best_radius;
+        this->centroid = frankWolfeAlgorithm.second;
+        this->radius = frankWolfeAlgorithm.first;
     }
 
     std::pair<SsNode*, SsNode*> insert(const Point& point, const std::string& path) override {
@@ -769,10 +778,61 @@ public:
 
 class SsTree {
 private:
+
+    std::function<bool(std::pair<NType, std::pair<Point, std::string>>&, std::pair<NType, std::pair<Point, std::string>>&)> compare = [&](std::pair<NType, std::pair<Point, std::string>>& a, std::pair<NType, std::pair<Point, std::string>>& b) {
+        return a.first < b.first;
+    };
+
     SsNode* root;
     std::size_t D;
 //    SsNode* search(SsNode* node, const Point& target);
 //    SsNode* searchParentLeaf(SsNode* node, const Point& target);
+    void _kNNQuery(const Point &target, size_t k, SsNode *node, NType radius, std::priority_queue<std::pair<NType, std::pair<Point, std::string>>, std::vector<std::pair<NType, std::pair<Point, std::string>>>, decltype(compare)> &result) const {
+        if (node->isLeaf()) {
+            auto* leafNode = dynamic_cast<SsLeaf*>(node);
+            for (int i = 0; i < leafNode->points.size(); ++i) {
+                Point p = leafNode->points[i];
+
+                NType dist = std::max(NType(0), distance(target, p));
+                // Regla 2
+                if (radius + std::max(NType(0), dist) < std::max(NType(0), distance(target, leafNode->centroid))) {
+                    continue;
+                }
+                // Regla 4
+                if (radius + std::max(NType(0), distance(target, leafNode->centroid)) < std::max(NType(0), distance(p, leafNode->centroid))) {
+                    continue;
+                }
+
+                if (dist < radius) {
+                    result.push({dist, {p, leafNode->paths[i]}});
+                    if (result.size() > k) {
+                        result.pop();
+                    }
+                }
+            }
+        }
+        else {
+            auto* innerNode = dynamic_cast<SsInnerNode*>(node);
+            // Se obtiene la menor distancia hacia un nodo
+            for (auto* child : innerNode->children) {
+                NType dist = std::max(NType(0), distance(target, child->centroid));
+
+                // Regla 1
+                if (radius + child->radius < std::max(NType(0), distance(target, child->centroid))) {
+                    continue;
+                }
+
+                // Regla 3
+                if (radius + std::max(NType(0), distance(target, child->centroid)) < child->radius) {
+                    continue;
+                }
+
+                if (dist + child->radius < radius) {
+                    _kNNQuery(target, k, child, radius, result);
+                }
+            }
+        }
+    }
 
 public:
     explicit SsTree(std::size_t dims) : root(nullptr), D(dims) {}
@@ -806,9 +866,22 @@ public:
         (dynamic_cast<SsInnerNode*>(root))->updateBoundingEnvelopeSplit();
     }
 
-//    void build (const std::vector<Point>& points);
-//    std::vector<Point> kNNQuery(const Point& center, size_t k) const;
-
+    // Se asume que hay más de k puntos en el árbol
+    [[nodiscard]] std::vector<std::string> kNNQuery(const Point &center, size_t k) const {
+        if (root == nullptr) return std::vector<std::string>();
+        std::priority_queue<std::pair<NType, std::pair<Point, std::string>>, std::vector<std::pair<NType, std::pair<Point, std::string>>>, decltype(compare)> result{compare};
+        this->_kNNQuery(center, k, this->root, NType::max_value(), result);
+        std::vector<std::string> points;
+        for (int i = 0; i < k; ++i) {
+//            std::cout << result.top().second.first << "\n";
+//            std::cout << result.top().first << "\n";
+            points.push_back(result.top().second.second);
+            result.pop();
+        }
+        std::vector<std::string> points_inv;
+        std::reverse_copy(points.begin(), points.end(), std::back_inserter(points_inv));
+        return points_inv;
+    }
 
     void print() const;
     void test() const;

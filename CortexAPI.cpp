@@ -34,8 +34,9 @@ std::vector<NType> CortexAPI::postImage(const std::string& imagePath) {
         curl_easy_setopt(curl, CURLOPT_HTTPPOST, post);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
         struct curl_slist* list = NULL;
-        list = curl_slist_append(list, "x-api-key: <KEY>");
+        list = curl_slist_append(list, "x-api-key: eJLlLzKise4B1Bl7DC6XQrbGcIpShDD5eaC9XNl2");
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
 
         res = curl_easy_perform(curl);
@@ -49,14 +50,20 @@ std::vector<NType> CortexAPI::postImage(const std::string& imagePath) {
     }
 
     std::stringstream ss(readBuffer);
-    NType value;
-    std::vector<NType> resultVector;
-    while (ss >> value) {
-        resultVector.push_back(value);
-        if (ss.peek() == ',') {
-            ss.ignore();
+    std::string result = ss.str();
+    std::istringstream iss(result);
+    iss.get();
+    std::string token;
+    std::vector<NType> float_values;
+
+    while (std::getline(iss, token, ',')) {
+        if (!token.empty()) {
+            float value;
+            if (std::istringstream(token) >> value) {
+                float_values.emplace_back(value);
+            }
         }
     }
 
-    return resultVector;
+    return float_values;
 }
