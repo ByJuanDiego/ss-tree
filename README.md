@@ -1,5 +1,13 @@
 # ss-tree
 
+Dependencies
+
+```ssh
+sudo pacman -S nlohmann-json
+sudo pacman -S sfml
+sudo pacman -S curl
+```
+
 Instructions to set the workspace
 
 ```ssh 
