@@ -121,7 +121,7 @@ private:
     Button selectButton;
     Button searchButton;
     bool imageSelected = false;
-    char const *filepath_of_selected_image = NULL;
+    char const *filepath_of_selected_image = nullptr;
 };
 
 void ImageSearchApp::init() {
@@ -196,7 +196,7 @@ void ImageSearchApp::render() {
 
 void ImageSearchApp::loadImage() {
     const char* filters[] = {"*.jpg", "*.png", "*.bmp", "*.jpeg"};
-    const char* filepath = tinyfd_openFileDialog("Selecciona una imagen", "", 4, filters, NULL, 0);
+    const char* filepath = tinyfd_openFileDialog("Selecciona una imagen", "", 4, filters, nullptr, 0);
 
     delete selectedSprite;
     delete selectedTexture;
