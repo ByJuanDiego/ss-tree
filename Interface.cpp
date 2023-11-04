@@ -96,6 +96,8 @@ public:
         for (sf::Texture* texture: resultTextures) {
             delete texture;
         }
+        delete selectedSprite;
+        delete selectedTexture;
     }
     void run();
 
@@ -110,8 +112,8 @@ private:
 
 private:
     sf::RenderWindow window;
-    sf::Texture selectedTexture;
-    sf::Sprite selectedSprite;
+    sf::Texture* selectedTexture;
+    sf::Sprite* selectedSprite;
     std::vector<sf::Texture*> resultTextures;
     std::vector<sf::Sprite*> resultSprites;
     SsTree sstree;
@@ -133,7 +135,7 @@ ImageSearchApp::ImageSearchApp()
         : window(sf::VideoMode(1200, 800), "Buscador de Imágenes"),
           selectButton(10, 10, 100, 50, "Seleccionar"),
           searchButton(120, 10, 100, 50, "Buscar"),
-          sstree(448){
+          sstree(448), selectedSprite(nullptr), selectedTexture(nullptr){
     sstree.loadFromFile("embedding.dat");
     init();
 }
@@ -163,8 +165,10 @@ void ImageSearchApp::processEvents() {
 void ImageSearchApp::render() {
     window.clear(sf::Color(200, 200, 200));
 
-    resizeSpriteTo(selectedSprite, 400, 400);
-    selectedSprite.setPosition(10, 90);
+    if (imageSelected) {
+        resizeSpriteTo(*selectedSprite, 400, 400);
+        selectedSprite->setPosition(10, 90);
+    }
 
     int xPos  = 420;
     int yPos  = 90;
@@ -183,7 +187,7 @@ void ImageSearchApp::render() {
     }
 
     if (imageSelected) {
-        window.draw(selectedSprite);
+        window.draw(*selectedSprite);
     }
     selectButton.draw(window);
     searchButton.draw(window);
@@ -194,8 +198,14 @@ void ImageSearchApp::loadImage() {
     const char* filters[] = {"*.jpg", "*.png", "*.bmp", "*.jpeg"};
     const char* filepath = tinyfd_openFileDialog("Selecciona una imagen", "", 4, filters, NULL, 0);
 
-    if (filepath && selectedTexture.loadFromFile(filepath)) {
-        selectedSprite.setTexture(selectedTexture);
+    delete selectedSprite;
+    delete selectedTexture;
+
+    selectedSprite = new sf::Sprite;
+    selectedTexture = new sf::Texture;
+
+    if (filepath && selectedTexture->loadFromFile(filepath)) {
+        selectedSprite->setTexture(*selectedTexture);
         imageSelected = true;
         filepath_of_selected_image = filepath;
     }
