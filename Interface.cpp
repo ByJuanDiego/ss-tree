@@ -191,8 +191,8 @@ void ImageSearchApp::render() {
 }
 
 void ImageSearchApp::loadImage() {
-    const char* filters[] = {"*.jpg", "*.png", "*.bmp"};
-    const char* filepath = tinyfd_openFileDialog("Selecciona una imagen", "", 3, filters, NULL, 0);
+    const char* filters[] = {"*.jpg", "*.png", "*.bmp", "*.jpeg"};
+    const char* filepath = tinyfd_openFileDialog("Selecciona una imagen", "", 4, filters, NULL, 0);
 
     if (filepath && selectedTexture.loadFromFile(filepath)) {
         selectedSprite.setTexture(selectedTexture);
