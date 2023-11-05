@@ -4,6 +4,7 @@ Dependencies
 
 ```ssh
 sudo pacman -S git-lfs
+sudo pacman -S hdf5
 sudo pacman -S nlohmann-json
 sudo pacman -S sfml
 sudo pacman -S curl
