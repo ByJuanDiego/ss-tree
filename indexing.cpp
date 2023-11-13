@@ -24,7 +24,7 @@ ImageData readEmbeddingsFromJson(const std::string& FILE_NAME) {
         nlohmann::json jsonData;
         file >> jsonData;
         for (auto it = jsonData.begin(); it != jsonData.end(); ++it) {
-            std::string path = it.key();
+            const std::string& path = it.key();
             std::vector<float> values = it.value();
             std::vector<NType> embedding;
             embedding.reserve(values.size());
@@ -51,6 +51,7 @@ int main() {
 
     for (int i = 0; i < data.embeddings.size(); ++i) {
         tree.insert(data.embeddings[i], data.paths[i]);
+
         if ((i+1)%100 == 0) {
             std::cout << (i+1) << ": " << "\n";
             tree.print();
@@ -62,6 +63,5 @@ int main() {
     tree.print();
     tree.test();
 
-    tree.saveToFile("embedding.dat");
+    tree.saveToFile("embedding1.dat");
 }
-
