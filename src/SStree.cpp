@@ -1,4 +1,4 @@
-#include "SStree.h"
+#include "../inc/SStree.h"
 
 
 NType SsNode::varianceAlongDirection(std::vector<Point>::iterator beg, std::vector<Point>::iterator end, size_t dim) {

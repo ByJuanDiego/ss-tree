@@ -24,13 +24,13 @@ unzip img.zip
 Then, compile the interface
 
 ```ssh
-g++ -std=c++17 Interface.cpp CortexAPI.cpp SStree.cpp tinyfiledialogs.c -o Interface -lsfml-graphics -lsfml-window -lsfml-system -lcurl
+g++ -std=c++17 interface.cpp src/CortexAPI.cpp src/SStree.cpp src/tinyfiledialogs.c -o interface -lsfml-graphics -lsfml-window -lsfml-system -lcurl
 ```
 
 Finally, call the executable
 
 ```ssh
-./Interface
+./interface
 ```
 
 Search the K-NNs!

@@ -1,8 +1,9 @@
 #include <iostream>
 #include <vector>
-#include "SStree.h"
 #include <nlohmann/json.hpp>
 #include <fstream>
+
+#include "inc/SStree.h"
 
 struct ImageData {
     std::vector<Point> embeddings;
@@ -63,5 +64,5 @@ int main() {
     tree.print();
     tree.test();
 
-    tree.saveToFile("embedding1.dat");
+    tree.saveToFile("tree.dat");
 }

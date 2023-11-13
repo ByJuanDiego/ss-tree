@@ -3,10 +3,9 @@
 #include <sstream>
 #include <SFML/Network.hpp>
 
-#include "tinyfiledialogs.h"
-
-#include "SStree.h"
-#include "CortexAPI.h"
+#include "inc/tinyfiledialogs.h"
+#include "inc/SStree.h"
+#include "inc/CortexAPI.h"
 
 class Button {
 public:
